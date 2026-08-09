@@ -1,6 +1,7 @@
 ﻿using Fisobs.Core;
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using ObjectType = AbstractPhysicalObject.AbstractObjectType;
 
@@ -78,23 +79,37 @@ public sealed class FisobRegistry : Registry
 
     private AbstractPhysicalObject? SaveState_AbstractPhysicalObjectFromString(On.SaveState.orig_AbstractPhysicalObjectFromString orig, World world, string objString)
     {
+        
         var data = objString.Split(new[] { "<oA>" }, StringSplitOptions.None);
+        
+        /*
+         * ID.-1.9646<oB>0    //ID (+ rippleLayer)
+         * <oA>ENUM           // Type
+         * <oA>XX_A01.77.25.2 // pos in room
+         * <oA>67             // WorldCoordinate
+         * <oA>0              // placedObjectIndex
+         */
+
+        var obj = orig(world, objString);
+        
+        string id;
+        if (data[0].Contains("<oB>")) {
+            // An APO's Ripple Layer when written is injected between ID and Type - "<oA>ID<oB>rippleLayer<oA>Type(...)".
+            var s = Regex.Split(data[0], "<oB>");
+            id = s[0];
+            obj.rippleLayer =  int.Parse(s[1]);
+        } else {
+            id = data[0];
+        }
         var type = new ObjectType(data[1]);
-
-        if (fisobs.TryGetValue(type, out Fisob o) && data.Length > 2) {
-            EntityID id = EntityID.FromString(data[0]);
-            WorldCoordinate coord = WorldCoordinate.FromString(data[2]);
-            string customData = data.Length > 3 ? data[3] : "";
-
-            try {
-                return o.Parse(world, new EntitySaveData(o.Type, id, coord, customData, SaveUtils.PopulateUnrecognizedStringAttrs(data, 4)), null);
-            } catch (Exception e) {
-                Debug.LogException(e);
-                Debug.LogError($"An exception was thrown in {o.GetType().FullName}::Parse: {e.Message}");
-                return null;
-            }
+        string worldCoord = data.Length > 2 ? data[2] : "";
+        string customData = data.Length > 3 ? data[3] : "";
+        
+        if (fisobs.TryGetValue(type, out Fisob f)) {
+            var newData = new EntitySaveData(f.Type, EntityID.FromString(id), WorldCoordinate.FromString(worldCoord), customData, SaveUtils.PopulateUnrecognizedStringAttrs(data, 4));
+            obj = f.Parse(world, newData, null);
         }
 
-        return orig(world, objString);
+        return obj;
     }
 }
