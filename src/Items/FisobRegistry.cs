@@ -79,12 +79,12 @@ public sealed class FisobRegistry : Registry
 
     private AbstractPhysicalObject? SaveState_AbstractPhysicalObjectFromString(On.SaveState.orig_AbstractPhysicalObjectFromString orig, World world, string objString)
     {
-         var data = objString.Split(new[] { "<oA>" }, StringSplitOptions.None);
+        var data = objString.Split(new[] { "<oA>" }, StringSplitOptions.None);
         var type = new ObjectType(data[1]);
 
         if (fisobs.TryGetValue(type, out Fisob o) && data.Length > 2) {
-            string rID = data[0].Contains("<oB>") ? Regex.Split(data[0], "<oB>")[0] : data[0];
-            EntityID id = EntityID.FromString(rID);
+            var regexID = data[0].Contains("<oB>") ? Regex.Split(data[0], "<oB>")[0] : data[0];
+            EntityID id = EntityID.FromString(regexID);
             WorldCoordinate coord = WorldCoordinate.FromString(data[2]);
             string customData = data.Length > 3 ? data[3] : "";
 
